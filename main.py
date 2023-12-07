@@ -1,11 +1,21 @@
 import datetime
 import re
+import sys, os
 from dataclasses import dataclass
 from enum import Enum
 from tkinter import messagebox
 from typing import List
 
 import customtkinter
+
+
+def resource(relative_path):
+    base_path = getattr(
+        sys,
+        '_MEIPASS',
+        os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
 
 
 class UT(Enum):
@@ -196,9 +206,11 @@ class TimerFrame(customtkinter.CTkFrame):
 
 
 class App(customtkinter.CTk):
+
     def __init__(self):
         super().__init__()
         self.title("Time Loop")
+        self.iconbitmap(resource("icon.ico"))
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
