@@ -22,6 +22,7 @@ class TimeItem:
     is_fullscreen: bool = False
 
     def __post_init__(self):
+        self.input_n = int(self.input_n)
         match self.units:
             case UT.H:
                 self.second = self.input_n * 60 * 60
@@ -168,7 +169,7 @@ class TimerFrame(customtkinter.CTkFrame):
         if not self.end_time:
             self.get_clock_index()
             self.end_time = datetime.datetime.now() + datetime.timedelta(
-                seconds=int(clock_list[self.clock_list_index].second))
+                seconds=clock_list[self.clock_list_index].second)
             return self.end_time
         return self.end_time
 
