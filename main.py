@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 import re
 import sys, os
 from dataclasses import dataclass
@@ -7,6 +8,7 @@ from tkinter import messagebox
 from typing import List
 
 import customtkinter
+from PIL import ImageTk, Image
 
 
 def resource(relative_path):
@@ -15,7 +17,6 @@ def resource(relative_path):
         '_MEIPASS',
         os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
-
 
 
 class UT(Enum):
@@ -56,24 +57,20 @@ class ConfigFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.name = customtkinter.CTkLabel(self, text="配置向导")
-        self.name.grid(column=0, row=0)
+        self.name = customtkinter.CTkLabel(self, text="配置向导", font=("", 32))
+        self.name.grid(column=0, row=0, columnspan=4, padx=20, pady=20, sticky="nsew")
         # 表头
+        self.table_title = customtkinter.CTkLabel(self, text="标签")
+        self.table_title.grid(column=0, row=2, padx=20, pady=20, sticky="nsew")
+        self.table_num = customtkinter.CTkLabel(self, text="时间")
+        self.table_num.grid(column=1, row=2, padx=20, pady=20, sticky="nsew")
+        self.table_unit = customtkinter.CTkLabel(self, text="单位")
+        self.table_unit.grid(column=2, row=2, padx=20, pady=20, sticky="nsew")
+        self.table_fullscreen = customtkinter.CTkLabel(self, text="全屏")
+        self.table_fullscreen.grid(column=3, row=2, padx=20, pady=20, sticky="nsew")
         self.add_button = customtkinter.CTkButton(master=self, text="+", fg_color="transparent", border_width=2,
                                                   text_color=("gray10", "#DCE4EE"), command=self.add_column)
-        self.add_button.grid(column=0, row=1, padx=10, pady=(0, 20))
-
-        self.table_title = customtkinter.CTkLabel(self, text="标签")
-        self.table_title.grid(column=0, row=2, padx=10, pady=(0, 20))
-        self.table_num = customtkinter.CTkLabel(self, text="时间")
-        self.table_num.grid(column=1, row=2, padx=10, pady=(0, 20))
-        self.table_unit = customtkinter.CTkLabel(self, text="单位")
-        self.table_unit.grid(column=2, row=2, padx=10, pady=(0, 20))
-        self.table_fullscreen = customtkinter.CTkLabel(self, text="全屏")
-        self.table_fullscreen.grid(column=3, row=2, padx=10, pady=(0, 20))
-        # 长亮
-        self.ok = customtkinter.CTkButton(self, text="创建计时", command=self.submit)
-        self.ok.grid(column=100, row=100)
+        self.add_button.grid(column=0, row=1000, columnspan=4, pady=20)
 
     def list_show(self):
         for i, v in enumerate(clock_list):
@@ -97,6 +94,7 @@ class ConfigFrame(customtkinter.CTkFrame):
                                        is_fullscreen=bool(is_fullscreen.get())))
             dialog.destroy()
             self.list_show()
+            self.master.refresh_control(0)
 
         dialog = customtkinter.CTkToplevel()
         dialog.geometry("300x200")
@@ -130,13 +128,6 @@ class ConfigFrame(customtkinter.CTkFrame):
     def check_num(num):
         return re.match('^[0-9]*$', num) is not None and len(num) <= 5
 
-    def submit(self):
-        if len(clock_list) == 0:
-            messagebox.showerror(message="")
-        else:
-            time_frame = TimerFrame(master=self.master)
-            time_frame.grid(row=0, column=0, sticky="nsew")
-
 
 class TimerFrame(customtkinter.CTkFrame):
     """
@@ -153,8 +144,6 @@ class TimerFrame(customtkinter.CTkFrame):
         self.clock_num = None
         # 处理时序的索引
         self.clock_list_index = 0
-        self.stop_button = customtkinter.CTkButton(self, text="stop", command=self.stop_time)
-        self.stop_button.grid(row=2, column=1, padx=20, pady=(20, 20))
         self.update_clock()
 
     def update_clock(self):
@@ -170,7 +159,9 @@ class TimerFrame(customtkinter.CTkFrame):
                                        parent=self)
             self.end_time = None
             if not s:
+                self.master.refresh_control(0)
                 return
+
         remaining_time = datetime.datetime.utcfromtimestamp((end_time - datetime.datetime.now()).seconds)
         self.time_label.configure(text=remaining_time.strftime("%H:%M:%S"))
         self.after(1000, self.update_clock)
@@ -193,14 +184,62 @@ class TimerFrame(customtkinter.CTkFrame):
             self.clock_num += 1
             self.clock_list_index = self.clock_num if self.clock_num < len_clock else self.clock_num % len_clock
 
-    def stop_time(self):
-        """
-        停止时间
-        :return:
-        """
+
+class ControlFrame(customtkinter.CTkFrame):
+    """
+    控制
+    """
+
+    def __init__(self, master, state: int, **kwargs):
+        super().__init__(master, **kwargs)
+
+        PATH = pathlib.Path(__file__).parent.parent.resolve()
+
+        self.ff = customtkinter.CTkFrame(self)
+        self.ff.pack()
+
+        self.state = state  # 0未开始 1正在运行
+        self.time_frame = None
+
+        self.img_play = customtkinter.CTkImage(light_image=Image.open(resource("static/play.png")).resize((18, 18)),
+                                               dark_image=Image.open(resource("static/play.png")).resize((18, 18)),
+                                               size=(18, 18))
+        self.img_stop = customtkinter.CTkImage(light_image=Image.open(resource("static/stop.png")).resize((18, 18)),
+                                               dark_image=Image.open(resource("static/stop.png")).resize((18, 18)),
+                                               size=(18, 18))
+        self.img_pause = customtkinter.CTkImage(light_image=Image.open(resource("static/pause.png")).resize((18, 18)),
+                                                dark_image=Image.open(resource("static/pause.png")).resize((18, 18)),
+                                                size=(18, 18))
+        if state == 0 and len(clock_list) != 0:
+            self.start_button = customtkinter.CTkButton(self.ff, text="", width=18, height=18, image=self.img_play,
+                                                        fg_color="transparent", hover_color="green",
+                                                        command=self.start)
+            self.start_button.grid(row=0, column=0)
+        else:
+            # self.pause_button = customtkinter.CTkButton(self.ff, text="", width=18, height=18, image=self.img_pause,
+            #                                             fg_color="transparent", hover_color="orange",
+            #                                             command=self.pause)
+            # self.pause_button.grid(row=0, column=0, padx=20, pady=20, sticky="nsew", )
+            self.end_button = customtkinter.CTkButton(self.ff, text="", width=18, height=18, image=self.img_stop,
+                                                      fg_color="transparent", hover_color="red", command=self.stop)
+            self.end_button.grid(row=0, column=1)
+
+    def start(self):
+        assert self.state == 0
+        if len(clock_list) == 0:
+            messagebox.showerror(message="未填写配置")
+        else:
+            self.master.refresh_control(1)
+
+    def pause(self):
+        pass
+
+    def stop(self):
+        assert self.state == 1
         r = messagebox.askokcancel(message="停止后将无法继续，是否停止")
         if r:
-            self.destroy()
+            self.master.refresh_control(0)
+            self.master.wm_attributes('-fullscreen', False)
         else:
             pass
 
@@ -210,12 +249,36 @@ class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
         self.title("Time Loop")
-        self.iconbitmap(resource("icon.ico"))
+        self.iconbitmap(resource("static/icon.ico"))
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         self.config_frame = ConfigFrame(master=self)
         self.config_frame.grid(row=0, column=0, sticky="nsew")
+        self.control_frame = None
+        self.time_frame = None
+        self.refresh_control(0)
+
+    def refresh_control(self, state: int):
+        """
+        :param state:0 未开始 1 运行中
+        :return:
+        """
+        if len(clock_list) != 0:
+            self.control_frame = ControlFrame(master=self, state=state)
+            self.control_frame.grid(row=6, sticky="nsew")
+        if state == 1:
+            # 运行中 开始计时 ，并变化按钮
+            self.control_frame = ControlFrame(master=self, state=state)
+            self.control_frame.grid(row=6, sticky="nsew")
+
+            self.time_frame = TimerFrame(master=self.master)
+            self.time_frame.grid(row=0, column=0, sticky="nsew")
+        elif self.time_frame and state == 0:
+            self.time_frame.destroy()
+            self.time_frame = None
+        else:
+            pass
 
 
 if __name__ == "__main__":
