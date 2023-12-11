@@ -1,22 +1,15 @@
+import configparser
 import datetime
 import pathlib
 import re
 import sys, os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from tkinter import messagebox
 from typing import List
 
 import customtkinter
-from PIL import ImageTk, Image
-
-
-def resource(relative_path):
-    base_path = getattr(
-        sys,
-        '_MEIPASS',
-        os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+from PIL import Image
 
 
 class UT(Enum):
@@ -35,18 +28,31 @@ class TimeItem:
     def __post_init__(self):
         self.input_n = int(self.input_n)
         match self.units:
-            case UT.H:
+            case UT.H | "UT.H":
                 self.second = self.input_n * 60 * 60
-            case UT.M:
+                self.units = UT.H
+            case UT.M | "UT.M":
                 self.second = self.input_n * 60
-            case UT.S:
+                self.units = UT.M
+            case UT.S | "UT.S":
                 self.second = self.input_n
+                self.units = UT.S
 
 
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("blue")
 
 clock_list: List[TimeItem] = []
+
+config = configparser.ConfigParser()
+
+
+def resource(relative_path):
+    base_path = getattr(
+        sys,
+        '_MEIPASS',
+        os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
 
 
 class ConfigFrame(customtkinter.CTkFrame):
@@ -66,11 +72,16 @@ class ConfigFrame(customtkinter.CTkFrame):
         self.table_num.grid(column=1, row=2, padx=20, pady=20, sticky="nsew")
         self.table_unit = customtkinter.CTkLabel(self, text="单位")
         self.table_unit.grid(column=2, row=2, padx=20, pady=20, sticky="nsew")
-        self.table_fullscreen = customtkinter.CTkLabel(self, text="全屏")
+        self.table_fullscreen = customtkinter.CTkLabel(self, text="模式")
         self.table_fullscreen.grid(column=3, row=2, padx=20, pady=20, sticky="nsew")
-        self.add_button = customtkinter.CTkButton(master=self, text="+", fg_color="transparent", border_width=2,
+        self.add_button = customtkinter.CTkButton(master=self, text="添加", fg_color="transparent", border_width=2,
                                                   text_color=("gray10", "#DCE4EE"), command=self.add_column)
-        self.add_button.grid(column=0, row=1000, columnspan=4, pady=20)
+        self.add_button.grid(column=0, row=1000, columnspan=2, pady=20)
+        self.save_button = customtkinter.CTkButton(master=self, text="保存", fg_color="transparent", border_width=2,
+                                                   text_color=("gray10", "#DCE4EE"), command=self.save_config)
+        self.save_button.grid(column=2, row=1000, columnspan=2, pady=20)
+
+        self.list_show()
 
     def list_show(self):
         for i, v in enumerate(clock_list):
@@ -82,6 +93,20 @@ class ConfigFrame(customtkinter.CTkFrame):
             units.grid(column=2, row=3 + i, padx=10, pady=(0, 20))
             is_fullscreen = customtkinter.CTkLabel(self, text="全屏" if v.is_fullscreen else "窗口")
             is_fullscreen.grid(column=3, row=3 + i, padx=10, pady=(0, 20))
+
+    def save_config(self):
+        user_dir = os.path.expanduser('~')
+
+        if not os.path.exists(os.path.join(user_dir, '.config')):
+            os.mkdir(os.path.join(user_dir, '.config'))
+        if len(clock_list) == 0:
+            messagebox.showerror(message="没有任何配置")
+            return
+        for i, v in enumerate(clock_list):
+            config[f'default{i}'] = asdict(v)
+        with open(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'), 'w') as f:
+            config.write(f)
+        messagebox.showinfo("保存成功")
 
     def add_column(self):
         """
@@ -193,8 +218,6 @@ class ControlFrame(customtkinter.CTkFrame):
     def __init__(self, master, state: int, **kwargs):
         super().__init__(master, **kwargs)
 
-        PATH = pathlib.Path(__file__).parent.parent.resolve()
-
         self.ff = customtkinter.CTkFrame(self)
         self.ff.pack()
 
@@ -253,11 +276,28 @@ class App(customtkinter.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        self.config_frame = ConfigFrame(master=self)
-        self.config_frame.grid(row=0, column=0, sticky="nsew")
         self.control_frame = None
         self.time_frame = None
+
+        self.read_config()
+        self.init_frame()
         self.refresh_control(0)
+
+    def read_config(self):
+        user_dir = os.path.expanduser('~')
+
+        if not os.path.exists(os.path.join(user_dir, '.config')):
+            return
+
+        config.read(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'))
+        for c in config.sections():
+            clock_list.append(TimeItem(units=config[c].get("units"), input_n=config[c].getint("input_n"),
+                                       desc=config[c]["desc"],
+                                       is_fullscreen=config[c].getboolean("is_fullscreen")))
+
+    def init_frame(self):
+        config_frame = ConfigFrame(master=self)
+        config_frame.grid(row=0, column=0, sticky="nsew")
 
     def refresh_control(self, state: int):
         """
