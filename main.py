@@ -1,6 +1,5 @@
 import configparser
 import datetime
-import pathlib
 import re
 import sys, os
 from dataclasses import dataclass, asdict
@@ -162,8 +161,11 @@ class TimerFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
+        # self.time_area = customtkinter.CTkFrame(self)
+        # self.time_area.pack()
+
         self.time_label = customtkinter.CTkLabel(self, font=customtkinter.CTkFont(size=20, weight="bold"))
-        self.time_label.grid(row=1, column=1, padx=20, pady=(20, 20))
+        self.time_label.grid(row=0, column=0)
         self.end_time = None
         # 计时次数
         self.clock_num = None
@@ -278,26 +280,28 @@ class App(customtkinter.CTk):
 
         self.control_frame = None
         self.time_frame = None
+        self.config_frame = None
 
         self.read_config()
         self.init_frame()
         self.refresh_control(0)
 
     def read_config(self):
-        user_dir = os.path.expanduser('~')
-
-        if not os.path.exists(os.path.join(user_dir, '.config')):
-            return
-
-        config.read(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'))
-        for c in config.sections():
-            clock_list.append(TimeItem(units=config[c].get("units"), input_n=config[c].getint("input_n"),
-                                       desc=config[c]["desc"],
-                                       is_fullscreen=config[c].getboolean("is_fullscreen")))
+        return
+        # user_dir = os.path.expanduser('~')
+        #
+        # if not os.path.exists(os.path.join(user_dir, '.config')):
+        #     return
+        #
+        # config.read(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'))
+        # for c in config.sections():
+        #     clock_list.append(TimeItem(units=config[c].get("units"), input_n=config[c].getint("input_n"),
+        #                                desc=config[c]["desc"],
+        #                                is_fullscreen=config[c].getboolean("is_fullscreen")))
 
     def init_frame(self):
-        config_frame = ConfigFrame(master=self)
-        config_frame.grid(row=0, column=0, sticky="nsew")
+        self.config_frame = ConfigFrame(master=self)
+        self.config_frame.grid(row=0, column=0)
 
     def refresh_control(self, state: int):
         """
@@ -306,15 +310,19 @@ class App(customtkinter.CTk):
         """
         if len(clock_list) != 0:
             self.control_frame = ControlFrame(master=self, state=state)
-            self.control_frame.grid(row=6, sticky="nsew")
+            self.control_frame.grid(row=6, sticky="s")
         if state == 1:
             # 运行中 开始计时 ，并变化按钮
             self.control_frame = ControlFrame(master=self, state=state)
-            self.control_frame.grid(row=6, sticky="nsew")
+            self.control_frame.grid(row=6, sticky="s")
 
-            self.time_frame = TimerFrame(master=self.master)
-            self.time_frame.grid(row=0, column=0, sticky="nsew")
+            self.config_frame.destroy()
+            self.control_frame = None
+            self.time_frame = TimerFrame(master=self.master, fg_color="transparent")
+            self.time_frame.grid(row=0, column=0)
+
         elif self.time_frame and state == 0:
+            self.init_frame()
             self.time_frame.destroy()
             self.time_frame = None
         else:
