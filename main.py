@@ -287,17 +287,16 @@ class App(customtkinter.CTk):
         self.refresh_control(0)
 
     def read_config(self):
-        return
-        # user_dir = os.path.expanduser('~')
-        #
-        # if not os.path.exists(os.path.join(user_dir, '.config')):
-        #     return
-        #
-        # config.read(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'))
-        # for c in config.sections():
-        #     clock_list.append(TimeItem(units=config[c].get("units"), input_n=config[c].getint("input_n"),
-        #                                desc=config[c]["desc"],
-        #                                is_fullscreen=config[c].getboolean("is_fullscreen")))
+        user_dir = os.path.expanduser('~')
+
+        if not os.path.exists(os.path.join(user_dir, '.config')):
+            return
+
+        config.read(os.path.join(user_dir, '.config', 'time_loop_lconfig.ini'))
+        for c in config.sections():
+            clock_list.append(TimeItem(units=config[c].get("units"), input_n=config[c].getint("input_n"),
+                                       desc=config[c]["desc"],
+                                       is_fullscreen=config[c].getboolean("is_fullscreen")))
 
     def init_frame(self):
         self.config_frame = ConfigFrame(master=self)
